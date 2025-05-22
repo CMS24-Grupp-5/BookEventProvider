@@ -1,4 +1,6 @@
 using BookEventProvider.Data;
+using BookEventProvider.Service;
+using BookEventProvider.Repository;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -16,6 +18,9 @@ builder.Services.AddCors(options =>
             .AllowAnyMethod()
             .AllowAnyHeader());
 });
+
+builder.Services.AddScoped<BookingRepository>();
+builder.Services.AddScoped<BookingService>();
 
 var app = builder.Build();
 

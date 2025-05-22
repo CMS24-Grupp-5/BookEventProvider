@@ -1,51 +1,61 @@
-﻿using BookEventProvider.Data;
-using BookEventProvider.Models;
+﻿using BookEventProvider.Models;
+using BookEventProvider.Service;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 
-namespace BookEventProvider.Controllers;
-
-[ApiController]
-[Route("api/[controller]")]
-public class BookingController : ControllerBase
+namespace BookEventProvider.Controllers
 {
-    private readonly AppDbContext _context;
-
-    public BookingController(AppDbContext context)
+    [ApiController]
+    [Route("api/[controller]")]
+    public class BookingController : ControllerBase
     {
-        _context = context;
-    }
+        private readonly BookingService _bookingService;
 
-    [Authorize]
-    [HttpPost]
-    public async Task<IActionResult> Book([FromBody] Booking booking)
-    {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrEmpty(userId)) 
-            return Unauthorized();
+        public BookingController(BookingService bookingService)
+        {
+            _bookingService = bookingService;
+        }
 
-        booking.UserId = userId;
-        booking.BookingDate = DateTime.UtcNow;
+        [HttpPost]
+        public async Task<IActionResult> Book([FromBody] Booking booking)
+        {
+            if (string.IsNullOrEmpty(booking.UserId))
+                return BadRequest("UserId not found.");
 
-        _context.Bookings.Add(booking);
-        await _context.SaveChangesAsync();
+            var createdBooking = await _bookingService.CreateBookingAsync(booking.UserId, booking.EventId);
+            return Ok(createdBooking);
+        }
 
-        return Ok(booking);
-    }
+        [HttpGet("By-user")]
+        public async Task<IActionResult> GetBookingsByUserId([FromQuery] string userId)
+        {
+            if (string.IsNullOrWhiteSpace(userId))
+                return BadRequest("UserId is missing.");
 
-    [Authorize]
-    [HttpGet]
-    public IActionResult GetMyBookings()
-    {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrEmpty(userId))
-            return Unauthorized();
+            var bookings = await _bookingService.GetBookingsForUserAsync(userId);
+            return Ok(bookings);
+        }
 
-        var bookings = _context.Bookings
-            .Where(b => b.UserId == userId)
-            .ToList();
+        [HttpDelete("{bookingId}")]
+        public async Task<IActionResult> CancelBooking(int bookingId)
+        {
+            var success = await _bookingService.CancelBookingAsync(bookingId);
+            if (!success)
+                return NotFound("Booking not found.");
 
-        return Ok(bookings);
+            return Ok("Your booking has been cancelled.");
+        }
+
+        [HttpGet("MyBookings")]
+        public async Task<IActionResult> GetMyUserId([FromQuery] string userId, [FromQuery] string eventId)
+        {
+            if (string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(eventId))
+                return BadRequest("UserId or EventId not found.");
+
+            Console.WriteLine($"Received UserId: {userId}, EventId: {eventId}");
+
+            var booking = await _bookingService.CreateBookingAsync(userId, int.Parse(eventId));
+            return Ok("Your booking was sucessful.");
+        }
     }
 }
