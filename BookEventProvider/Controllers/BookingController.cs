@@ -1,4 +1,4 @@
-﻿using BookEventProvider.Models;
+using BookEventProvider.Models;
 using BookEventProvider.Service;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -19,12 +19,26 @@ namespace BookEventProvider.Controllers
         [HttpPost]
         public async Task<IActionResult> Book([FromBody] Booking booking)
         {
-            if (string.IsNullOrEmpty(booking.UserId))
-                return BadRequest("UserId not found.");
+            try
+            {
+                Console.WriteLine($"Received userId: {booking.UserId}, eventId: {booking.EventId}");
 
-            var createdBooking = await _bookingService.CreateBookingAsync(booking.UserId, booking.EventId);
-            return Ok(createdBooking);
+                if (string.IsNullOrEmpty(booking.UserId))
+                    return BadRequest("UserId is missing.");
+
+                var createdBooking = await _bookingService.CreateBookingAsync(booking.UserId, booking.EventId);
+
+                Console.WriteLine($"Booking created for user {booking.UserId} and event {booking.EventId}");
+
+                return Ok(createdBooking);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Booking failed: {ex.Message}");
+                return StatusCode(500, $"Server error: {ex.Message}");
+            }
         }
+
 
         [HttpGet("By-user")]
         public async Task<IActionResult> GetBookingsByUserId([FromQuery] string userId)
